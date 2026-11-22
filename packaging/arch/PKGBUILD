@@ -19,8 +19,10 @@ optdepends=('libnotify: desktop notifications for "Send to Phone"')
 provides=('syncme')
 conflicts=('syncme')
 install=syncme.install
-# Set SYNCME_SRC=/path/to/checkout to build local changes instead of GitHub main.
-source=("syncme::git+${SYNCME_SRC:-https://github.com/CosmicKittu/Syncme.git}")
+# Set SYNCME_SRC=/path/to/checkout to build its committed HEAD instead of GitHub main.
+_src=https://github.com/CosmicKittu/Syncme.git
+[ -n "${SYNCME_SRC:-}" ] && _src="file://${SYNCME_SRC}"
+source=("syncme::git+${_src}")
 sha256sums=('SKIP')
 
 pkgver() {
