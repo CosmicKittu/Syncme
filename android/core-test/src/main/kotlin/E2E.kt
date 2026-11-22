@@ -43,6 +43,12 @@ fun main(args: Array<String>) {
     val bogus = PairTarget("0".repeat(64), "x", listOf("127.0.0.1:$pcPort"))
     check(runCatching { SyncClient.pair(bogus, token, deviceId, "Test Phone") {} }.isFailure, "pinned key mismatch fails")
 
+    println("unreachable PC gives a specific reason")
+    val unreach = runCatching { SyncClient.pair(PairTarget("1".repeat(64), "Nowhere", listOf("127.0.0.1:1")), token, deviceId, "Test Phone") {} }
+    val why = unreach.exceptionOrNull()?.message ?: ""
+    println("    " + why.replace("\n", "\n    "))
+    check(why.contains("127.0.0.1:1") && why.contains("refused"), "error names the address and the cause")
+
     println("pairing")
     var shownCode = ""
     val target = PairTarget(pcInfo.id, pcInfo.name, listOf("127.0.0.1:$pcPort"))

@@ -304,9 +304,27 @@ class SyncClient(
          */
         fun pair(target: PairTarget, token: String, deviceId: String, deviceName: String, onCode: (String) -> Unit): Peer {
             var c: Connected? = null
-            Connector.race(target.addrs, target.id, 4000)?.let { c = Connected(it.first, it.second, true) }
-            if (c == null && target.relay.isNotBlank()) c = Connected(Connector.viaRelay(target.relay, target.id), "relay", false)
-            val conn = c ?: throw IOException("Could not reach ${target.name}. Same Wi-Fi? Is `syncme` running and the firewall open (TCP $DEFAULT_PORT)?")
+            val errors = ArrayList<String>()
+            Connector.race(target.addrs, target.id, 4000, errors)?.let { c = Connected(it.first, it.second, true) }
+            if (c == null) {
+                // The QR code's addresses may be stale or on another interface: ask the LAN.
+                val found = Connector.discover(2000).filter { it.id == target.id }.map { it.addr }.filter { it !in target.addrs }
+                if (found.isNotEmpty()) Connector.race(found, target.id, 4000, errors)?.let { c = Connected(it.first, it.second, true) }
+            }
+            if (c == null && target.relay.isNotBlank()) {
+                try {
+                    c = Connected(Connector.viaRelay(target.relay, target.id), "relay", false)
+                } catch (e: Exception) {
+                    errors.add("relay ${target.relay} — ${Connector.describe(e)}")
+                }
+            }
+            val conn = c ?: throw IOException(buildString {
+                append("Could not reach ${target.name}.\n\n")
+                if (target.addrs.isEmpty() && errors.isEmpty()) append("The pairing code contains no addresses.\n")
+                for (e in errors) append("• ").append(e).append('\n')
+                append("\nPhone and PC must be on the same Wi-Fi (not a guest network). ")
+                append("On the PC, allow TCP $DEFAULT_PORT and UDP $DISCOVERY_PORT in the firewall.")
+            })
             FrameConn(conn.socket).use { fc ->
                 conn.socket.soTimeout = 30_000
                 fc.send(msg("pair", "v" to PROTO_VERSION, "id" to deviceId, "name" to deviceName, "token" to token.trim().uppercase()))

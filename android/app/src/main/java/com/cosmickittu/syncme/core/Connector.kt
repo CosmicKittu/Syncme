@@ -113,7 +113,7 @@ object Connector {
     }
 
     /** Tries all addresses at once; the first successful TLS handshake wins. */
-    fun race(addrs: List<String>, id: String, timeoutMs: Int): Pair<SSLSocket, String>? {
+    fun race(addrs: List<String>, id: String, timeoutMs: Int, errors: MutableList<String>? = null): Pair<SSLSocket, String>? {
         if (addrs.isEmpty()) return null
         val lock = Object()
         var winner: Pair<SSLSocket, String>? = null
@@ -136,6 +136,7 @@ object Connector {
                     if (keep) first.countDown() else tls.close()
                 } catch (e: Exception) {
                     log("$a: ${e.message}")
+                    if (errors != null) synchronized(errors) { errors.add("$a — ${describe(e)}") }
                 } finally {
                     done.countDown()
                     if (done.count == 0L) first.countDown()
@@ -144,6 +145,24 @@ object Connector {
         }
         first.await(timeoutMs * 3L, TimeUnit.MILLISECONDS)
         return synchronized(lock) { closed = true; winner }
+    }
+
+    /** Human-readable reason a connection attempt failed. */
+    fun describe(e: Throwable): String {
+        var c: Throwable? = e
+        while (c != null) {
+            if (c is java.security.cert.CertificateException) return "a different PC answered (key mismatch)"
+            c = c.cause
+        }
+        return when (e) {
+            is SocketTimeoutException -> "no answer (PC firewall, or not the same network)"
+            is java.net.ConnectException ->
+                if (e.message?.contains("refused", true) == true) "connection refused (is the syncme service running?)"
+                else "unreachable (${e.message})"
+            is java.net.NoRouteToHostException -> "no route (different network or Wi-Fi client isolation)"
+            is javax.net.ssl.SSLException -> "secure handshake failed (${e.message})"
+            else -> e.message ?: e.javaClass.simpleName
+        }
     }
 
     fun viaRelay(relay: String, id: String): SSLSocket {

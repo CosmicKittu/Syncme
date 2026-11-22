@@ -38,6 +38,7 @@ Usage:
   syncme status            show this PC's id, addresses and paired phones
   syncme unpair <name|id>  remove a paired phone
   syncme send <files...>   copy files into the synced folder and sync now
+  syncme doctor            check why the phone can't connect (firewall, network)
   syncme install           install the systemd user service and right-click menus
   syncme uninstall         remove what "install" added
   syncme version
@@ -79,6 +80,8 @@ func main() {
 		}
 	case "send":
 		err = send(paths, os.Args[2:])
+	case "doctor":
+		err = doctor(paths)
 	case "install":
 		err = install()
 	case "uninstall":
