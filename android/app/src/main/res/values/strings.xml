@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Syncme</string>
+    <string name="share_label">Syncme (send to PC)</string>
+    <string name="tagline">Keeps Download/syncme in sync with ~/syncme on your PC.</string>
+    <string name="channel_name">Sync status</string>
+    <string name="sync_now">Sync now</string>
+    <string name="syncing">Syncing…</string>
+    <string name="unpair">Unpair</string>
+    <string name="unpair_msg">Stop syncing with this PC? Files stay where they are. Also run `syncme unpair` on the PC.</string>
+    <string name="not_paired">Not paired</string>
+    <string name="pair_hint">On the PC run `syncme pair`, then scan the QR code.</string>
+    <string name="need_access">Allow file access so Syncme can use Download/syncme.</string>
+    <string name="need_access_first">Open Syncme and allow file access first.</string>
+    <string name="grant_access">Allow file access</string>
+    <string name="battery">Keep syncing in background (battery)</string>
+    <string name="scan_qr">Scan QR code</string>
+    <string name="scan_prompt">Scan the QR code shown by `syncme pair`</string>
+    <string name="find_lan">Find PC on this Wi-Fi</string>
+    <string name="paste_link">Enter pairing link</string>
+    <string name="paste_title">Pairing link</string>
+    <string name="pair">Pair</string>
+    <string name="searching">Looking for PCs on this network…</string>
+    <string name="none_found">No PC found. Make sure `syncme` is running, you are on the same Wi-Fi, and UDP 47811 / TCP 47810 are allowed by the PC firewall.</string>
+    <string name="choose_pc">Choose your PC</string>
+    <string name="enter_code_title">Pair with %1$s</string>
+    <string name="enter_code_msg">Enter the 8-letter code shown by `syncme pair`.\nFingerprint: %1$s</string>
+    <string name="pairing_with">Pairing with %1$s</string>
+    <string name="connecting">Connecting…</string>
+    <string name="verify_code">Verification code\n\n%1$s\n\nCheck that the PC shows the SAME code, then confirm on the PC.</string>
+    <string name="paired_ok">Paired with %1$s</string>
+    <string name="pair_failed">Pairing failed: %1$s</string>
+    <string name="bad_code">Not a valid pairing code: %1$s</string>
+    <string name="replace_title">Replace paired PC?</string>
+    <string name="replace_msg">This phone syncs with %1$s. Pair with %2$s instead?</string>
+    <string name="replace">Replace</string>
+    <string name="folder_path">Folder: %1$s</string>
+    <string name="last_sync">Last sync %1$s · %2$d in, %3$d out, %4$d conflicts</string>
+    <string name="help">Share any file to \"Syncme\" from another app to put it in the folder. Deleted files are kept in .syncme-trash for 30 days. Conflicting edits are kept as *.sync-conflict-* copies.</string>
+    <string name="copying">Copying %1$d item(s) to Download/syncme…</string>
+    <string name="shared_ok">Saved %1$d item(s) to Download/syncme</string>
+    <string name="shared_partial">Saved %1$d item(s), %2$d failed</string>
+    <string name="nothing_to_share">Nothing to share</string>
+</resources>

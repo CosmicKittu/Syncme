@@ -1,0 +1,15 @@
+# Go
+/dist/
+/syncme
+/syncme-relay
+# Android / Gradle
+.gradle/
+build/
+local.properties
+*.apk
+*.aab
+*.jks
+*.keystore
+.idea/
+*.iml
+.kotlin/
