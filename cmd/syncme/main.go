@@ -32,6 +32,7 @@ var version = "dev"
 const usage = `syncme - sync ~/syncme with your phone
 
 Usage:
+  syncme                   show status, or run the service if it isn't running
   syncme daemon            run the sync service (normally started by systemd)
   syncme pair              pair a new phone (shows a QR code)
   syncme status            show this PC's id, addresses and paired phones
@@ -43,11 +44,21 @@ Usage:
 `
 
 func main() {
-	if len(os.Args) < 2 {
-		fmt.Print(usage)
-		os.Exit(2)
-	}
 	paths := config.DefaultPaths()
+	if len(os.Args) < 2 {
+		// Running the binary directly: show status if the service is up,
+		// otherwise run the service in the foreground.
+		if call(paths, "GET", "/status", nil, nil) == nil {
+			if err := status(paths); err != nil {
+				fmt.Fprintln(os.Stderr, "syncme:", err)
+				os.Exit(1)
+			}
+			fmt.Print("\nRun `syncme help` for all commands.\n")
+			return
+		}
+		fmt.Println("Starting Syncme in the foreground (Ctrl+C to stop). In another terminal run `syncme pair`.")
+		os.Args = append(os.Args, "daemon")
+	}
 	var err error
 	switch os.Args[1] {
 	case "daemon":

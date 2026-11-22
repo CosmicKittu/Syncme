@@ -110,12 +110,27 @@ func thunarPath() string {
 	return filepath.Join(cfg, "Thunar", "uca.xml")
 }
 
+// systemFiles maps per-user files to the copies a distro package (e.g. the
+// Arch PKGBUILD) installs system-wide; when present we don't duplicate them.
+var systemFiles = map[string]string{
+	"syncme.service":      "/usr/lib/systemd/user/syncme.service",
+	"syncme.nemo_action":  "/usr/share/nemo/actions/syncme.nemo_action",
+	"syncme.desktop":      "/usr/share/kio/servicemenus/syncme.desktop",
+	"syncme-send.desktop": "/usr/share/applications/syncme-send.desktop",
+}
+
 func install() error {
 	files, err := integrationFiles()
 	if err != nil {
 		return err
 	}
 	for _, f := range files {
+		if sys, ok := systemFiles[filepath.Base(f.path)]; ok {
+			if _, err := os.Stat(sys); err == nil {
+				fmt.Println("using system", sys)
+				continue
+			}
+		}
 		if err := os.MkdirAll(filepath.Dir(f.path), 0o755); err != nil {
 			return err
 		}

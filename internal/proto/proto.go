@@ -90,8 +90,8 @@ func NewConn(c net.Conn) *Conn {
 	return &Conn{raw: c, r: bufio.NewReaderSize(c, 64<<10), w: bufio.NewWriterSize(c, 64<<10)}
 }
 
-func (c *Conn) Close() error              { return c.raw.Close() }
-func (c *Conn) RemoteAddr() net.Addr      { return c.raw.RemoteAddr() }
+func (c *Conn) Close() error         { return c.raw.Close() }
+func (c *Conn) RemoteAddr() net.Addr { return c.raw.RemoteAddr() }
 func (c *Conn) SetReadTimeout(d time.Duration) {
 	if d == 0 {
 		_ = c.raw.SetReadDeadline(time.Time{})

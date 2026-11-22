@@ -19,7 +19,7 @@ func encodeSecret(b []byte) string { return base64.StdEncoding.EncodeToString(b)
 // opError is a failure of a single file operation; the session continues.
 type opError struct{ msg string }
 
-func (e *opError) Error() string { return e.msg }
+func (e *opError) Error() string     { return e.msg }
 func opErr(f string, a ...any) error { return &opError{fmt.Sprintf(f, a...)} }
 
 type session struct {

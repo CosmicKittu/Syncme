@@ -8,7 +8,22 @@ permissions:
   contents: write
 
 jobs:
+  arch:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - run: pacman -Sy --noconfirm git
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: scripts/build-arch-in-container.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arch
+          path: dist/*.pkg.tar.zst
+
   release:
+    needs: arch
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -44,6 +59,10 @@ jobs:
         run: |
           ./gradlew --no-daemon assembleRelease
           cp app/build/outputs/apk/release/app-release.apk ../dist/syncme-android.apk
+      - uses: actions/download-artifact@v4
+        with:
+          name: arch
+          path: dist
       - uses: softprops/action-gh-release@v2
         with:
           files: dist/*

@@ -1,0 +1,12 @@
+[Unit]
+Description=Syncme folder sync with phone
+Documentation=https://github.com/CosmicKittu/Syncme
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/syncme daemon
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

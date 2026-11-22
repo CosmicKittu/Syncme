@@ -1,0 +1,18 @@
+post_install() {
+  cat <<'MSG'
+
+  Syncme installed. As your normal user (not root) run:
+
+      systemctl --user enable --now syncme   # start syncing at login
+      syncme install                         # right-click menus for Nautilus/Caja/Thunar
+      syncme pair                            # pair your phone (scan the QR code)
+
+  Firewall (only if you use one):
+      sudo ufw allow syncme       # or: TCP 47810 + UDP 47811
+
+MSG
+}
+
+post_upgrade() {
+  echo "  Restart the service to use the new version: systemctl --user restart syncme"
+}

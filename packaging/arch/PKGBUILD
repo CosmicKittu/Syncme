@@ -1,0 +1,57 @@
+# Maintainer: CosmicKittu
+#
+# Build & install on Arch Linux:
+#   cd packaging/arch && makepkg -si
+# Then, as your normal user:
+#   systemctl --user enable --now syncme
+#   syncme install        # right-click "Send to Phone" for Nautilus/Caja/Thunar
+#   syncme pair
+pkgname=syncme-git
+pkgver=r1
+pkgrel=1
+pkgdesc="Peer-to-peer two-way sync of ~/syncme with Download/syncme on your Android phone"
+arch=('x86_64' 'aarch64' 'armv7h')
+url="https://github.com/CosmicKittu/Syncme"
+license=('unknown')  # change once a LICENSE file is added
+depends=('glibc')
+makedepends=('go' 'git')
+optdepends=('libnotify: desktop notifications for "Send to Phone"')
+provides=('syncme')
+conflicts=('syncme')
+install=syncme.install
+# Set SYNCME_SRC=/path/to/checkout to build local changes instead of GitHub main.
+source=("syncme::git+${SYNCME_SRC:-https://github.com/CosmicKittu/Syncme.git}")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd syncme
+  printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
+}
+
+build() {
+  cd syncme
+  export CGO_ENABLED=0
+  export GOFLAGS="-buildmode=pie -trimpath -mod=readonly -modcacherw"
+  go build -ldflags "-s -w -X main.version=${pkgver}" -o build/syncme ./cmd/syncme
+  go build -ldflags "-s -w" -o build/syncme-relay ./cmd/syncme-relay
+}
+
+check() {
+  cd syncme
+  go test ./...
+}
+
+package() {
+  cd syncme
+  install -Dm755 build/syncme "$pkgdir/usr/bin/syncme"
+  install -Dm755 build/syncme-relay "$pkgdir/usr/bin/syncme-relay"
+  install -Dm644 packaging/linux/syncme.service "$pkgdir/usr/lib/systemd/user/syncme.service"
+  install -Dm644 packaging/linux/syncme-relay.service "$pkgdir/usr/lib/systemd/system/syncme-relay.service"
+  install -Dm644 packaging/linux/syncme-send.desktop "$pkgdir/usr/share/applications/syncme-send.desktop"
+  install -Dm644 packaging/linux/syncme.nemo_action "$pkgdir/usr/share/nemo/actions/syncme.nemo_action"
+  install -Dm644 packaging/linux/syncme-dolphin.desktop "$pkgdir/usr/share/kio/servicemenus/syncme.desktop"
+  install -Dm644 packaging/linux/syncme.ufw "$pkgdir/etc/ufw/applications.d/syncme"
+  install -Dm644 README.md "$pkgdir/usr/share/doc/syncme/README.md"
+  install -Dm644 docs/PROTOCOL.md "$pkgdir/usr/share/doc/syncme/PROTOCOL.md"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

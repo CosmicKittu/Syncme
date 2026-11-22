@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Send to Phone (Syncme)
+Comment=Copy to ~/syncme and sync to your phone
+Exec=syncme send --notify %F
+Icon=phone
+Terminal=false
+NoDisplay=true
+MimeType=application/octet-stream;application/pdf;image/*;video/*;audio/*;text/*;application/zip;

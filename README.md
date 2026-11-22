@@ -20,6 +20,31 @@ Two-way, peer-to-peer sync between a folder on your Linux PC and your Android ph
 
 ---
 
+## Build
+
+```bash
+make linux      # dist/syncme-linux-amd64, dist/syncme-linux-arm64 (static, run directly)
+make android    # dist/syncme.apk (needs only JDK 17+; downloads the Android SDK itself)
+make all        # both
+make install    # build + install for your user (~/.local/bin) + start the service
+```
+
+**Arch Linux** (package with systemd unit, menus and firewall profile):
+
+```bash
+sudo pacman -S --needed base-devel git go
+cd packaging/arch && makepkg -si        # builds from GitHub main
+# or from this checkout:   make arch && sudo pacman -U dist/*.pkg.tar.zst
+systemctl --user enable --now syncme
+syncme install && syncme pair
+```
+
+For the APK on Arch: `sudo pacman -S --needed jdk17-openjdk unzip && make android`. Then copy
+`dist/syncme.apk` to the phone and open it, or use `adb install -r dist/syncme.apk`.
+
+Running `syncme` with no arguments shows the status if the service is running. Otherwise it starts the
+service in the foreground, so you can run the binary straight from `dist/`.
+
 ## 1. Install on Linux
 
 **Download** `syncme-linux-amd64` (or `-arm64`) from [Releases](../../releases), or build it yourself (Go 1.22 or newer):

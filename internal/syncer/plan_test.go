@@ -8,7 +8,9 @@ import (
 	"github.com/CosmicKittu/Syncme/internal/index"
 )
 
-func e(h string, m int64) index.Entry { return index.Entry{Size: 1, MTime: m, Hash: strings.Repeat(h, 64)} }
+func e(h string, m int64) index.Entry {
+	return index.Entry{Size: 1, MTime: m, Hash: strings.Repeat(h, 64)}
+}
 
 type M = map[string]index.Entry
 

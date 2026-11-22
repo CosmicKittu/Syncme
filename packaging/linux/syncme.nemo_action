@@ -1,0 +1,7 @@
+[Nemo Action]
+Name=Send to Phone (Syncme)
+Comment=Copy to ~/syncme and sync to your phone
+Exec=syncme send --notify %F
+Icon-Name=phone
+Selection=notnone
+Extensions=any;

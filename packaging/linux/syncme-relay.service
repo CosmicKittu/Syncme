@@ -1,0 +1,16 @@
+[Unit]
+Description=Syncme relay (internet fallback forwarder)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/bin/syncme-relay -listen :47812
+DynamicUser=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,4 @@
+[syncme]
+title=Syncme
+description=Peer-to-peer folder sync with your phone
+ports=47810/tcp|47811/udp
