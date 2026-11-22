@@ -19,6 +19,7 @@ optdepends=('libnotify: desktop notifications for "Send to Phone"')
 provides=('syncme')
 conflicts=('syncme')
 install=syncme.install
+options=('!debug')  # binaries are stripped; no separate debug package
 # Set SYNCME_SRC=/path/to/checkout to build its committed HEAD instead of GitHub main.
 _src=https://github.com/CosmicKittu/Syncme.git
 [ -n "${SYNCME_SRC:-}" ] && _src="file://${SYNCME_SRC}"
