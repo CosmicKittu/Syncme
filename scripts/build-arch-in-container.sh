@@ -6,6 +6,8 @@ pacman -Syu --noconfirm --needed base-devel git go
 useradd -m builder || true
 git config --global --add safe.directory '*'
 cp -r "$PWD" /home/builder/src && chown -R builder /home/builder/src
+# Tag builds check out a detached HEAD; give makepkg a branch to clone.
+git -C /home/builder/src checkout -q -B makepkg-build
 su builder -c "git config --global --add safe.directory '*' && cd /home/builder/src/packaging/arch && SYNCME_SRC=/home/builder/src makepkg -f --noconfirm"
 mkdir -p dist && cp /home/builder/src/packaging/arch/*.pkg.tar.zst dist/
 pacman -U --noconfirm dist/*.pkg.tar.zst
