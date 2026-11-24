@@ -13,9 +13,10 @@ pkgdesc="Peer-to-peer two-way sync of ~/syncme with Download/syncme on your Andr
 arch=('x86_64' 'aarch64' 'armv7h')
 url="https://github.com/CosmicKittu/Syncme"
 license=('unknown')  # change once a LICENSE file is added
-depends=('glibc')
+depends=('glibc' 'wl-clipboard')
 makedepends=('go' 'git')
-optdepends=('libnotify: desktop notifications for "Send to Phone"')
+optdepends=('libnotify: desktop notifications for "Send to Phone"'
+            'xclip: clipboard sharing on X11 sessions')
 provides=('syncme')
 conflicts=('syncme')
 install=syncme.install

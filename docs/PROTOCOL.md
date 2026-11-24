@@ -67,6 +67,20 @@ PC    -> {"t":"wake","reason":"change"|"poke"|"timeout"}
 
 `put.old` is the hash the PC expects the phone to have at that path right now (empty means none). If the phone's file differs from both `old` and the new hash, the phone refuses the write, and the next cycle handles it as a conflict.
 
+## Clipboard
+
+Clipboard messages can be sent by either side at any time on the sync connection, including during a sync session or a wait. Receivers handle them wherever they read and then carry on. A message plus its data frames is always written atomically.
+
+```
+either -> {"t":"clip","id","kind":"text","mime":"text/plain","text":...,"h":sha256,"s":size,"sens":bool,"from":device,"reply":bool}
+either -> {"t":"clip","id","kind":"image","mime":"image/png","h","s",...} + data frames
+PC     -> {"t":"clip","kind":"none","reply":true}      (answer to clipget when the PC clipboard is empty)
+phone  -> {"t":"clipget"}                              (ask for the PC clipboard now)
+phone  -> {"t":"clipcfg","auto":bool}                  (push PC copies automatically? sent after welcome)
+```
+
+The PC is the hub. A clip from a device is written to the PC clipboard and offered to the other devices. PC copies are offered to every device with `auto` on. A device is never sent a clip whose hash it already has. Sensitive clips (`sens`) are only delivered as replies to `clipget`, never relayed automatically. Limits: text 1 MiB, images 16 MiB.
+
 ## Merge (PC side, `internal/syncer`)
 
 For each path, the PC compares three versions by content hash:

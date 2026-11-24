@@ -71,6 +71,7 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, R.string.syncing, Toast.LENGTH_SHORT).show()
         }
         findViewById<Button>(R.id.btnUnpair).setOnClickListener { confirmUnpair() }
+        findViewById<Button>(R.id.btnClipboard).setOnClickListener { startActivity(Intent(this, ClipboardActivity::class.java)) }
 
         tvFolder.text = getString(R.string.folder_path, Storage.folder().absolutePath)
         if (Build.VERSION.SDK_INT >= 33) askPermissions.launch(arrayOf(Manifest.permission.POST_NOTIFICATIONS))

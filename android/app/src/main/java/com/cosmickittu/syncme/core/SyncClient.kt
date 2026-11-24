@@ -34,6 +34,8 @@ interface SyncListener {
     fun onLog(text: String) {}
     fun onSessionStart() {}
     fun onSessionEnd() {}
+    /** A clip from the PC (or relayed from another device through the PC). */
+    fun onClip(clip: ClipItem) {}
 }
 
 /**
@@ -57,6 +59,58 @@ class SyncClient(
     @Volatile private var dropRequested = false
     @Volatile private var connectedLocal = true
     @Volatile private var syncedSig = ""
+
+    /** Whether the PC should push its clipboard automatically. */
+    @Volatile var clipAuto: Boolean = true
+        set(v) {
+            field = v
+            conn?.let { c -> try { c.send(msg("clipcfg", "auto" to v)) } catch (_: IOException) {} }
+        }
+
+    val isConnected: Boolean get() = conn != null
+
+    /** Sends a clip to the PC. Throws if not connected. */
+    fun sendClip(item: ClipItem) {
+        val c = conn ?: throw IOException("Not connected to the PC")
+        val m = msg("clip", "id" to item.id, "kind" to item.kind, "mime" to item.mime, "h" to item.hash,
+            "s" to item.size, "sens" to (if (item.sensitive) true else null))
+        if (item.kind == "text") {
+            m.put("text", item.text)
+            c.send(m)
+        } else {
+            val d = item.data ?: throw IOException("no image data")
+            c.sendWithData(m, d.inputStream(), d.size.toLong())
+        }
+    }
+
+    /** Asks the PC for its current clipboard; the answer arrives via [SyncListener.onClip]. */
+    fun requestPcClip() {
+        val c = conn ?: throw IOException("Not connected to the PC")
+        c.send(msg("clipget"))
+    }
+
+    /** Reads the next message, handling clipboard pushes that can arrive at any time. */
+    private fun recvHandled(fc: FrameConn): JSONObject {
+        while (true) {
+            val m = fc.recv()
+            if (m.optString("t") != "clip") return m
+            var data: ByteArray? = null
+            if (m.optString("kind") == "image") {
+                val buf = java.io.ByteArrayOutputStream()
+                val res = fc.recvData(buf, ClipItem.MAX_IMAGE.toLong())
+                if (res.hash != m.optString("h")) {
+                    listener.onLog("clipboard image failed verification")
+                    continue
+                }
+                data = buf.toByteArray()
+            }
+            try {
+                listener.onClip(ClipItem.header(m, data))
+            } catch (e: Exception) {
+                listener.onLog("clipboard: $e")
+            }
+        }
+    }
 
     /** Ask for a sync as soon as possible (e.g. after a share). */
     fun requestSync() {
@@ -91,6 +145,7 @@ class SyncClient(
             connectedLocal = c.local
             val updated = peer.withWelcome(w, c.via)
             if (updated != peer) store.save(updated)
+            fc.send(msg("clipcfg", "auto" to clipAuto))
             listener.onConnected(updated, c.via, c.local)
             return fc to updated
         } catch (e: Exception) {
@@ -148,7 +203,7 @@ class SyncClient(
                     val w = try {
                         fc.send(msg("wait"))
                         if (pokeRequested.get()) fc.send(msg("poke")) // raced with requestSync()
-                        fc.recv()
+                        recvHandled(fc)
                     } finally {
                         waiting.set(false)
                     }
@@ -184,7 +239,7 @@ class SyncClient(
         fc.socket.soTimeout = 5 * 60_000
         fc.send(msg("sync", "files" to arr))
         while (true) {
-            val m = fc.recv()
+            val m = recvHandled(fc)
             when (m.optString("t")) {
                 "get" -> handleGet(fc, m, files)
                 "put" -> handlePut(fc, m)
@@ -217,8 +272,7 @@ class SyncClient(
         val f = index.file(p)
         val input = try { FileInputStream(f) } catch (ex: IOException) { return err(fc, "cannot read $p") }
         input.use {
-            fc.send(msg("file", "p" to p, "s" to e.size, "m" to e.mtime, "h" to e.hash))
-            fc.sendData(it, e.size)
+            fc.sendWithData(msg("file", "p" to p, "s" to e.size, "m" to e.mtime, "h" to e.hash), it, e.size)
         }
     }
 

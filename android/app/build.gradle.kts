@@ -11,8 +11,8 @@ android {
         applicationId = "com.cosmickittu.syncme"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = 3
+        versionName = "1.1.0"
     }
 
     // Release builds are signed with your own key when these env vars are set
@@ -49,5 +49,6 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.activity:activity-ktx:1.9.3")
     implementation("com.google.android.material:material:1.12.0")
+    implementation("androidx.recyclerview:recyclerview:1.3.2")
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
 }

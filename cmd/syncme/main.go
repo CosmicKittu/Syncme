@@ -174,6 +174,7 @@ func status(paths config.Paths) error {
 	if st.Relay != "" {
 		fmt.Printf("Relay:    %s\n", st.Relay)
 	}
+	fmt.Printf("Clipboard: %s\n", st.Clipboard)
 	fmt.Println()
 	if len(st.Devices) == 0 {
 		fmt.Println("No paired phones. Run `syncme pair`.")

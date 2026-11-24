@@ -89,6 +89,28 @@ func (d *Daemon) handleSync(c *proto.Conn, hello *proto.Msg, via string) error {
 	defer d.markConnected(dev.ID, -1)
 	defer d.Log.Printf("%s disconnected", dev.Name)
 
+	// Clipboard pushes to this device go through one writer goroutine.
+	peer := newClipPeer(dev)
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		for {
+			select {
+			case <-done:
+				return
+			case o := <-peer.out:
+				if err := sendClip(c, o.clip, o.reply); err != nil {
+					c.Close()
+					return
+				}
+			}
+		}
+	}()
+	if d.Cfg.Clipboard {
+		d.clips.add(peer)
+		defer d.clips.remove(peer)
+	}
+
 	var pending <-chan recvResult // a message read during a previous wait
 	lastSig := ""
 	for {
@@ -102,23 +124,25 @@ func (d *Daemon) handleSync(c *proto.Conn, hello *proto.Msg, via string) error {
 			m = r.m
 		} else {
 			c.SetReadTimeout(idleTimeout)
-			if m, err = c.Recv(); err != nil {
+			if m, err = recvMsg(c); err != nil {
 				return err
 			}
 		}
 		switch m.T {
 		case "sync":
-			if err := d.runSession(c, dev, m.Files); err != nil {
+			if err := d.runSession(c, dev, peer, m.Files); err != nil {
 				return err
 			}
 			lastSig = index.QuickSig(d.Cfg.Folder)
 			d.devices.Touch(dev.ID, true)
 		case "wait":
-			if pending, err = d.wait(c, lastSig); err != nil {
+			if pending, err = d.wait(c, peer, lastSig); err != nil {
 				return err
 			}
 		case "poke", "ping":
 			// stray poke after a wait already ended; nothing to do
+		case "clip", "clipget", "clipcfg":
+			d.handleClipMsg(peer, m)
 		case "bye":
 			return nil
 		default:
@@ -135,13 +159,16 @@ type recvResult struct {
 // wait blocks until the folder changes, the CLI pokes, the phone pokes,
 // or a timeout, then replies "wake". A read started during the wait may
 // still be in flight; it is returned so the caller consumes it next.
-func (d *Daemon) wait(c *proto.Conn, lastSig string) (<-chan recvResult, error) {
+func (d *Daemon) wait(c *proto.Conn, peer *clipPeer, lastSig string) (<-chan recvResult, error) {
 	ch := make(chan recvResult, 1)
-	go func() {
-		c.SetReadTimeout(idleTimeout)
-		m, err := c.Recv()
-		ch <- recvResult{m, err}
-	}()
+	read := func() {
+		go func() {
+			c.SetReadTimeout(idleTimeout)
+			m, err := recvMsg(c)
+			ch <- recvResult{m, err}
+		}()
+	}
+	read()
 	tick := time.NewTicker(2 * time.Second)
 	defer tick.Stop()
 	timer := time.NewTimer(waitDuration)
@@ -155,10 +182,14 @@ func (d *Daemon) wait(c *proto.Conn, lastSig string) (<-chan recvResult, error) 
 			if r.err != nil {
 				return nil, r.err
 			}
-			inflight = nil
-			if r.m.T == "poke" {
+			switch r.m.T {
+			case "poke":
+				inflight = nil
 				reason = "poke"
-			} else {
+			case "clip", "clipget", "clipcfg", "ping":
+				d.handleClipMsg(peer, r.m) // clipboard traffic doesn't end the wait
+				read()
+			default:
 				// Phone gave up waiting and sent a real request: answer
 				// the wait and hand the request back to the main loop.
 				done := make(chan recvResult, 1)

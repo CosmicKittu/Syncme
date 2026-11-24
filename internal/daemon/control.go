@@ -17,14 +17,15 @@ import (
 // The control API is HTTP on a unix socket (mode 0600) used by the CLI.
 
 type Status struct {
-	Name    string         `json:"name"`
-	ID      string         `json:"id"`
-	Folder  string         `json:"folder"`
-	Port    int            `json:"port"`
-	Addrs   []string       `json:"addrs"`
-	Public  string         `json:"public"`
-	Relay   string         `json:"relay"`
-	Devices []DeviceStatus `json:"devices"`
+	Name      string         `json:"name"`
+	ID        string         `json:"id"`
+	Folder    string         `json:"folder"`
+	Port      int            `json:"port"`
+	Addrs     []string       `json:"addrs"`
+	Public    string         `json:"public"`
+	Relay     string         `json:"relay"`
+	Clipboard string         `json:"clipboard"`
+	Devices   []DeviceStatus `json:"devices"`
 }
 
 type DeviceStatus struct {
@@ -81,7 +82,7 @@ func (d *Daemon) serveControl(ctx context.Context) (net.Listener, error) {
 		writeJSON(w, map[string]string{"error": msg})
 	}
 	mux.HandleFunc("GET /status", func(w http.ResponseWriter, r *http.Request) {
-		st := Status{Name: d.Cfg.Name, ID: d.ID.ID, Folder: d.Cfg.Folder, Port: d.Cfg.Port, Addrs: d.Addresses(), Public: d.Public(), Relay: d.Cfg.Relay}
+		st := Status{Name: d.Cfg.Name, ID: d.ID.ID, Folder: d.Cfg.Folder, Port: d.Cfg.Port, Addrs: d.Addresses(), Public: d.Public(), Relay: d.Cfg.Relay, Clipboard: d.ClipStatus()}
 		for _, dv := range d.devices.List() {
 			st.Devices = append(st.Devices, DeviceStatus{Device: dv, Connected: d.IsConnected(dv.ID)})
 		}

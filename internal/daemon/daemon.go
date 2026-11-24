@@ -37,6 +37,9 @@ type Daemon struct {
 	pokeMu sync.Mutex
 	pokeCh chan struct{}
 
+	clips      *ClipHub
+	clipStatus atomic.Value // string
+
 	public    atomic.Value // string
 	connected sync.Map     // device id -> int (connection count)
 }
@@ -54,6 +57,7 @@ func New(cfg *config.Config, paths config.Paths, logger *log.Logger) (*Daemon, e
 		Cfg: cfg, Paths: paths, ID: id, Log: logger, devices: devs,
 		cache:  index.LoadCache(filepath.Join(paths.DataDir, "hashcache.json")),
 		pokeCh: make(chan struct{}),
+		clips:  newClipHub(logger, cfg.Name),
 	}
 	d.tlsCfg = &tls.Config{Certificates: []tls.Certificate{id.Cert}, MinVersion: tls.VersionTLS12}
 	d.public.Store(cfg.PublicAddress)
@@ -107,6 +111,11 @@ func (d *Daemon) Run(ctx context.Context) error {
 		go d.relayLoop(ctx)
 	}
 	go d.trashCleanupLoop(ctx)
+	if d.Cfg.Clipboard {
+		go d.clipLoop(ctx)
+	} else {
+		d.setClipStatus("off (disabled in config)")
+	}
 
 	go func() { <-ctx.Done(); ln.Close() }()
 	for {

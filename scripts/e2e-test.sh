@@ -28,7 +28,7 @@ echo "pairing token: $TOKEN"
 
 cd "$ROOT/android/core-test"
 status=0
-"${GRADLE:-../gradlew}" -q run --args="$TOKEN $WORK/pc $WORK/phone $WORK/state $PORT 127.0.0.1:$RELAY_PORT" || status=$?
+"${GRADLE:-../gradlew}" -q run --args="$TOKEN $WORK/pc $WORK/phone $WORK/state $PORT 127.0.0.1:$RELAY_PORT $WORK/syncme" || status=$?
 
 PC_CODE=$(grep -o 'Verification code: *[0-9 ]*' "$WORK/pair.log" | tr -dc '0-9')
 PHONE_CODE=$(cat "$WORK/state/code.txt" 2>/dev/null || true)

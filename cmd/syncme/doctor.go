@@ -46,6 +46,12 @@ func doctor(paths config.Paths) error {
 		ok("LAN address(es): " + strings.Join(lan, ", ") + "  (the phone must be on the same network)")
 	}
 
+	if strings.HasPrefix(st.Clipboard, "on") {
+		ok("clipboard sharing " + st.Clipboard)
+	} else {
+		bad("clipboard sharing " + st.Clipboard)
+	}
+
 	fw := detectFirewall()
 	if fw == "" {
 		ok("no active firewall detected")

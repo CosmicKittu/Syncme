@@ -76,6 +76,16 @@ type Msg struct {
 	Hash   string     `json:"h,omitempty"`
 	Old    string     `json:"old,omitempty"`
 	Stats  *Stats     `json:"stats,omitempty"`
+
+	// Clipboard ("clip", "clipget", "clipcfg")
+	Kind  string `json:"kind,omitempty"` // "text" | "image" | "none"
+	Mime  string `json:"mime,omitempty"`
+	Text  string `json:"text,omitempty"`
+	Sens  bool   `json:"sens,omitempty"`  // password / sensitive: never stored or relayed automatically
+	Reply bool   `json:"reply,omitempty"` // answer to "clipget"
+	Auto  *bool  `json:"auto,omitempty"`  // clipcfg: push PC clipboard automatically
+	From  string `json:"from,omitempty"`  // device the clip came from
+	Data  []byte `json:"-"`               // image bytes (sent as data frames after the message)
 }
 
 // Conn wraps a stream (normally TLS) with frame reading and writing.
@@ -129,16 +139,31 @@ func (c *Conn) readFrame(max int) (byte, []byte, error) {
 
 // Send writes one JSON message and flushes.
 func (c *Conn) Send(m *Msg) error {
+	c.wmu.Lock()
+	defer c.wmu.Unlock()
+	return c.sendLocked(m)
+}
+
+func (c *Conn) sendLocked(m *Msg) error {
 	b, err := json.Marshal(m)
 	if err != nil {
 		return err
 	}
-	c.wmu.Lock()
-	defer c.wmu.Unlock()
 	if err := c.writeFrame(frameJSON, b); err != nil {
 		return err
 	}
 	return c.w.Flush()
+}
+
+// SendWithData writes a message immediately followed by its data stream,
+// atomically with respect to other writers on this connection.
+func (c *Conn) SendWithData(m *Msg, src io.Reader) (int64, string, error) {
+	c.wmu.Lock()
+	defer c.wmu.Unlock()
+	if err := c.sendLocked(m); err != nil {
+		return 0, "", err
+	}
+	return c.sendDataLocked(src)
 }
 
 // Recv reads one JSON message.
@@ -164,6 +189,10 @@ func (c *Conn) Recv() (*Msg, error) {
 func (c *Conn) SendData(src io.Reader) (int64, string, error) {
 	c.wmu.Lock()
 	defer c.wmu.Unlock()
+	return c.sendDataLocked(src)
+}
+
+func (c *Conn) sendDataLocked(src io.Reader) (int64, string, error) {
 	h := sha256.New()
 	buf := make([]byte, chunkSize)
 	var total int64

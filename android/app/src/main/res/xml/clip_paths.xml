@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Files exposed (read-only, per-grant) when an image is put on the clipboard or shared. -->
+<paths>
+    <cache-path name="clipimg" path="clipimg/" />
+    <files-path name="clips" path="clips/" />
+</paths>

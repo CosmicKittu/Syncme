@@ -112,6 +112,14 @@
                 android:text="@string/sync_now" />
 
             <Button
+                android:id="@+id/btnClipboard"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/clipboard"
+                app:icon="@drawable/ic_clipboard" />
+
+            <Button
                 android:id="@+id/btnUnpair"
                 style="@style/Widget.Material3.Button.TextButton"
                 android:layout_width="match_parent"

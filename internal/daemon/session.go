@@ -23,6 +23,7 @@ func (e *opError) Error() string     { return e.msg }
 func opErr(f string, a ...any) error { return &opError{fmt.Sprintf(f, a...)} }
 
 type session struct {
+	peer *clipPeer
 	d    *Daemon
 	c    *proto.Conn
 	dev  *Device
@@ -31,7 +32,7 @@ type session struct {
 	st   proto.Stats
 }
 
-func (d *Daemon) runSession(c *proto.Conn, dev *Device, files []proto.FileInfo) error {
+func (d *Daemon) runSession(c *proto.Conn, dev *Device, peer *clipPeer, files []proto.FileInfo) error {
 	d.syncMu.Lock()
 	defer d.syncMu.Unlock()
 
@@ -47,7 +48,7 @@ func (d *Daemon) runSession(c *proto.Conn, dev *Device, files []proto.FileInfo) 
 		_ = c.Send(&proto.Msg{T: "done", Error: "PC folder unreadable"})
 		return fmt.Errorf("scan: %w", err)
 	}
-	s := &session{d: d, c: c, dev: dev, root: d.Cfg.Folder, base: loadBase(d.Paths.DataDir, dev.ID)}
+	s := &session{d: d, c: c, dev: dev, peer: peer, root: d.Cfg.Folder, base: loadBase(d.Paths.DataDir, dev.ID)}
 	actions := syncer.Plan(s.base, local, remote, time.Now(), d.Cfg.Name, dev.Name)
 
 	lastSave := time.Now()
@@ -137,13 +138,21 @@ func (s *session) request(m *proto.Msg) error {
 	return s.expectOK()
 }
 
-// recv reads the phone's reply, skipping pokes that raced with a wake.
+// recv reads the phone's reply, skipping pokes that raced with a wake and
+// handling clipboard messages that arrive in the middle of a session.
 func (s *session) recv() (*proto.Msg, error) {
 	for {
 		s.c.SetReadTimeout(5 * time.Minute)
-		m, err := s.c.Recv()
-		if err != nil || (m.T != "poke" && m.T != "ping") {
-			return m, err
+		m, err := recvMsg(s.c)
+		if err != nil {
+			return nil, err
+		}
+		switch m.T {
+		case "poke", "ping":
+		case "clip", "clipget", "clipcfg":
+			s.d.handleClipMsg(s.peer, m)
+		default:
+			return m, nil
 		}
 	}
 }
@@ -249,10 +258,7 @@ func (s *session) push(src, dst string, l index.Entry, old string) error {
 	if !unchanged(abs, &l) {
 		return opErr("changed locally during sync")
 	}
-	if err := s.c.Send(&proto.Msg{T: "put", Path: dst, Size: l.Size, MTime: l.MTime, Hash: l.Hash, Old: old}); err != nil {
-		return err
-	}
-	if _, _, err := s.c.SendData(io.LimitReader(f, l.Size)); err != nil {
+	if _, _, err := s.c.SendWithData(&proto.Msg{T: "put", Path: dst, Size: l.Size, MTime: l.MTime, Hash: l.Hash, Old: old}, io.LimitReader(f, l.Size)); err != nil {
 		var pe *os.PathError
 		if !errors.As(err, &pe) {
 			return err

@@ -125,6 +125,10 @@ fun main(args: Array<String>) {
     client.dropConnection()
     t.join(5000)
 
+    println("second device (tablet) + clipboard")
+    val syncmeBin = args.getOrNull(6) ?: ""
+    if (syncmeBin.isNotEmpty()) testTabletAndClipboard(syncmeBin, pcInfo, pcPort, pc, phone, state, store, deviceId)
+
     if (relay.isNotEmpty()) {
         println("relay fallback")
         Connector.discoveryEnabled = false
@@ -140,4 +144,105 @@ fun main(args: Array<String>) {
 
     println(if (failures == 0) "ALL PASSED" else "$failures FAILED")
     exitProcess(if (failures == 0) 0 else 1)
+}
+
+/** Runs `syncme pair` and returns its token; answers "y" to the confirmation. */
+fun startPair(bin: String): Pair<Process, String> {
+    val p = ProcessBuilder(bin, "pair").redirectErrorStream(true).start()
+    val r = p.inputStream.bufferedReader()
+    var token = ""
+    val t0 = System.currentTimeMillis()
+    while (token.isEmpty() && System.currentTimeMillis() - t0 < 10_000) {
+        val line = r.readLine() ?: break
+        Regex("enter code: +([A-Z0-9]{8})").find(line)?.let { token = it.groupValues[1] }
+    }
+    Thread { try { r.forEachLine { } } catch (_: Exception) {} }.apply { isDaemon = true }.start()
+    p.outputStream.write("y\n".toByteArray()); p.outputStream.flush()
+    return p to token
+}
+
+class Recorder : SyncListener {
+    val clips = java.util.concurrent.CopyOnWriteArrayList<ClipItem>()
+    override fun onClip(clip: ClipItem) { clips.add(clip) }
+}
+
+fun testTabletAndClipboard(bin: String, pcInfo: DiscoveredPc, pcPort: Int, pc: File, phone: File, state: File, phoneStore: PeerStore, phoneId: String) {
+    val (proc, token) = startPair(bin)
+    check(token.isNotEmpty(), "second pairing code issued")
+    val tabletId = Crypto.randomHex(16)
+    val tabletDir = File(state, "tablet").apply { mkdirs() }
+    val tabletState = File(state, "tablet-state").apply { mkdirs() }
+    val tabletStore = FileStore(File(tabletState, "peer.json"))
+    val tpeer = SyncClient.pair(PairTarget(pcInfo.id, pcInfo.name, listOf("127.0.0.1:$pcPort")), token, tabletId, "Test Tablet") {}
+    tabletStore.save(tpeer)
+    proc.waitFor(10, java.util.concurrent.TimeUnit.SECONDS)
+    check(tpeer.secret.size == 32, "tablet paired too")
+
+    val phoneRec = Recorder(); val tabletRec = Recorder()
+    val phoneClient = SyncClient(phone, state, phoneStore, phoneId, "Test Phone", phoneRec)
+    val tabletClient = SyncClient(tabletDir, tabletState, tabletStore, tabletId, "Test Tablet", tabletRec)
+    val threads = listOf(phoneClient, tabletClient).map { c ->
+        Thread { try { c.runConnected { true } } catch (e: IOException) { println("    live ended: $e") } }.apply { isDaemon = true; start() }
+    }
+    check(waitFor(8000) { phoneClient.isConnected && tabletClient.isConnected }, "phone and tablet both connected")
+    check(waitFor(10000) { File(tabletDir, "a.txt").exists() }, "tablet received the existing files")
+
+    // files: phone -> PC -> tablet
+    File(phone, "from-phone-to-tablet.txt").writeText("hop")
+    phoneClient.requestSync()
+    check(waitFor(10000) { File(tabletDir, "from-phone-to-tablet.txt").exists() }, "file relayed phone -> PC -> tablet")
+
+    // clipboard text: phone -> tablet
+    phoneClient.sendClip(ClipItem.text("hello from phone"))
+    check(waitFor(5000) { tabletRec.clips.any { it.text == "hello from phone" && it.from == "Test Phone" } }, "text clip relayed phone -> tablet")
+    Thread.sleep(500)
+    check(phoneRec.clips.none { it.text == "hello from phone" }, "no echo back to the sender")
+
+    // Get PC clipboard
+    phoneClient.requestPcClip()
+    check(waitFor(5000) { phoneRec.clips.any { it.reply && it.text == "hello from phone" } }, "Get PC clipboard answers with the current clip")
+
+    // image: tablet -> phone
+    val img = ByteArray(300_000).also { java.util.Random(7).nextBytes(it) }
+    tabletClient.sendClip(ClipItem.image(img, "image/png"))
+    check(waitFor(5000) { phoneRec.clips.any { it.kind == "image" && it.data?.contentEquals(img) == true } }, "image clip relayed tablet -> phone intact")
+
+    // auto off: no pushes, but explicit get still works
+    tabletClient.clipAuto = false
+    Thread.sleep(300)
+    phoneClient.sendClip(ClipItem.text("only on request"))
+    Thread.sleep(1500)
+    check(tabletRec.clips.none { it.text == "only on request" }, "auto-receive off: not pushed")
+    tabletClient.requestPcClip()
+    check(waitFor(5000) { tabletRec.clips.any { it.reply && it.text == "only on request" } }, "auto-receive off: Get PC clipboard still works")
+    tabletClient.clipAuto = true
+
+    // sensitive: never relayed
+    phoneClient.sendClip(ClipItem.text("hunter2", sensitive = true))
+    Thread.sleep(1500)
+    check(tabletRec.clips.none { it.text == "hunter2" }, "sensitive clip not relayed")
+
+    // clipboard during a busy sync session
+    val many = (1..30).map { File(phone, "bulk/f$it.bin").apply { parentFile.mkdirs(); writeBytes(ByteArray(50_000) { i -> (i * it).toByte() }) } }
+    phoneClient.requestSync()
+    Thread.sleep(200)
+    tabletClient.sendClip(ClipItem.text("during sync"))
+    check(waitFor(8000) { phoneRec.clips.any { it.text == "during sync" } }, "clip delivered while a sync is running")
+    check(waitFor(15000) { many.all { File(tabletDir, "bulk/${it.name}").exists() } }, "bulk files still synced correctly")
+
+    if (System.getenv("WAYLAND_DISPLAY") != null) {
+        println("desktop clipboard (Wayland)")
+        phoneClient.sendClip(ClipItem.text("phone -> desktop"))
+        check(waitFor(5000) { runCatching { ProcessBuilder("wl-paste", "-n").start().inputStream.bufferedReader().readText() }.getOrNull() == "phone -> desktop" },
+            "phone clip lands on the PC clipboard")
+        ProcessBuilder("wl-copy", "copied on the PC").start().waitFor()
+        check(waitFor(6000) { phoneRec.clips.any { it.text == "copied on the PC" } && tabletRec.clips.any { it.text == "copied on the PC" } },
+            "PC copy pushed to phone and tablet")
+        val shot = ByteArray(120_000).also { java.util.Random(3).nextBytes(it) }
+        ProcessBuilder("wl-copy", "--type", "image/png").start().apply { outputStream.use { it.write(shot) }; waitFor() }
+        check(waitFor(6000) { phoneRec.clips.any { it.kind == "image" && it.data?.contentEquals(shot) == true } }, "PC image copy pushed to phone")
+    }
+
+    phoneClient.dropConnection(); tabletClient.dropConnection()
+    threads.forEach { it.join(5000) }
 }

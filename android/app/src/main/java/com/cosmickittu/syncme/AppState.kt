@@ -30,6 +30,10 @@ class Prefs(ctx: Context) : PeerStore {
             return n?.takeIf { it.isNotBlank() } ?: "${Build.MANUFACTURER} ${Build.MODEL}"
         }
 
+    var clipAuto: Boolean
+        get() = sp.getBoolean("clip_auto", true)
+        set(v) { sp.edit().putBoolean("clip_auto", v).apply() }
+
     override fun load(): Peer? = sp.getString("peer", null)?.let {
         try { Peer.fromJson(JSONObject(it)) } catch (_: Exception) { null }
     }

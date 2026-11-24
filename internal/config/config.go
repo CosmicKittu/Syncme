@@ -18,6 +18,7 @@ type Config struct {
 	UPnP          bool   `json:"upnp"`           // try to open the port on the router
 	PublicAddress string `json:"public_address"` // optional host:port reachable from internet (port forward / DDNS)
 	Relay         string `json:"relay"`          // optional host:port of a syncme-relay
+	Clipboard     bool   `json:"clipboard"`      // share the clipboard with paired devices
 }
 
 type Paths struct {
@@ -66,6 +67,7 @@ func Default() *Config {
 		Port:      proto.DefaultPort,
 		Discovery: true,
 		UPnP:      true,
+		Clipboard: true,
 	}
 }
 

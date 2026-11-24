@@ -58,6 +58,13 @@ class FrameConn(val socket: Socket) : AutoCloseable {
         return JSONObject(String(b, Charsets.UTF_8))
     }
 
+    /** A message and its data stream, with no other frame in between. */
+    fun sendWithData(m: JSONObject, src: InputStream, limit: Long): String =
+        synchronized(writeLock) {
+            send(m)
+            sendData(src, limit)
+        }
+
     /** Streams up to [limit] bytes of [src]; returns the sha256 of what was sent. */
     fun sendData(src: InputStream, limit: Long): String {
         val md = MessageDigest.getInstance("SHA-256")

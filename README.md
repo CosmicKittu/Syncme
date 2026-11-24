@@ -97,6 +97,20 @@ Both screens now show a **6-digit verification code**. If the codes match, type 
 - `syncme status` shows which phones are paired and connected, and when they last synced.
 - `syncme unpair <name>` removes a phone. On the phone, tap **Unpair**.
 
+### Clipboard sharing
+
+- **PC → phone/tablet:** whatever you copy on the PC appears on the phone's clipboard within a second. This includes images such as screenshots. You can turn it off in the app (*Clipboard → Receive PC clipboard automatically*).
+- **Phone → PC:** Android doesn't let background apps read the clipboard, so sending takes one tap. Use any of these:
+  - the **Send clipboard** button on the Syncme notification
+  - the **Send clipboard** Quick Settings tile (add it from the edit-tiles screen)
+  - **Share → Syncme clipboard** from any app; on Android 13+ the copy pop-up has a Share button
+- **Get PC clipboard** (notification or app) fetches the PC's current clipboard on demand.
+- **Phone ⇄ tablet:** a clip from one device is relayed to the others through the PC. The PC must be on.
+- What you send lands in KDE's clipboard history (Klipper) like a normal copy. The app keeps its own history of the last 200 clips; tap one to copy it again, or long-press to send, share or delete it.
+- **Passwords:** clips that password managers mark as secret (KeePassXC etc. on the PC, "sensitive" clips on Android 13+) are never pushed automatically, never relayed, and never stored in history.
+- Copied *files* are not sent as clipboard text. Use file sync (`~/syncme`) for files.
+- The PC needs `wl-clipboard` on Wayland (the Arch package pulls it in) or `xclip` on X11. `syncme status` shows whether clipboard sharing is on. Set `"clipboard": false` in the config to disable it.
+
 ### What happens when…
 
 | Situation | Result |

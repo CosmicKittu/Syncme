@@ -11,12 +11,15 @@ import android.content.pm.ServiceInfo
 import android.net.ConnectivityManager
 import android.net.Network
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
+import com.cosmickittu.syncme.core.ClipItem
 import com.cosmickittu.syncme.core.Connector
 import com.cosmickittu.syncme.core.Peer
 import com.cosmickittu.syncme.core.RemoteException
@@ -69,6 +72,7 @@ class SyncService : Service() {
         when (intent?.action) {
             ACTION_STOP -> { stopSelf(); return START_NOT_STICKY }
             ACTION_SYNC -> { client?.requestSync(); kick() }
+            ACTION_CLIP_GET -> ClipActions.requestFromPc(this)
         }
         if (worker == null) {
             running = true
@@ -84,6 +88,7 @@ class SyncService : Service() {
         running = false
         try { getSystemService(ConnectivityManager::class.java).unregisterNetworkCallback(netCallback) } catch (_: Exception) {}
         client?.dropConnection()
+        activeClient = null
         worker?.interrupt()
         worker = null
         wakeLock?.let { if (it.isHeld) it.release() }
@@ -110,6 +115,22 @@ class SyncService : Service() {
             setStatus("Up to date with ${peer?.name ?: "PC"} (${SyncState.via})", connected = true)
         }
         override fun onLog(text: String) { Log.i(TAG, text) }
+        override fun onClip(clip: ClipItem) {
+            val app = this@SyncService
+            Handler(Looper.getMainLooper()).post {
+                when {
+                    clip.kind == "none" -> toast(app, getString(R.string.clip_pc_empty))
+                    !clip.reply && !prefs.clipAuto -> {} // switched off; ignore late pushes
+                    else -> try {
+                        ClipBridge.setClipboard(app, clip)
+                        ClipStore.get(app).add(clip, ClipStore.IN)
+                        if (clip.reply) toast(app, getString(R.string.clip_received))
+                    } catch (e: Exception) {
+                        Log.w(TAG, "clipboard: $e")
+                    }
+                }
+            }
+        }
         override fun onSessionStart() { wakeLock?.acquire(10 * 60 * 1000L) }
         override fun onSessionEnd() { wakeLock?.let { if (it.isHeld) it.release() } }
     }
@@ -130,6 +151,8 @@ class SyncService : Service() {
             val folder = Storage.folder()
             folder.mkdirs()
             val c = client ?: SyncClient(folder, filesDir, prefs, prefs.deviceId, prefs.deviceName, listener).also { client = it }
+            c.clipAuto = prefs.clipAuto
+            activeClient = c
             try {
                 c.index.cleanTrash()
                 c.runConnected { running }
@@ -158,6 +181,8 @@ class SyncService : Service() {
     private fun buildNotification(text: String): Notification {
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         val sync = PendingIntent.getService(this, 1, Intent(this, SyncService::class.java).setAction(ACTION_SYNC), PendingIntent.FLAG_IMMUTABLE)
+        val clipSend = PendingIntent.getActivity(this, 3, Intent(this, ClipSendActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_IMMUTABLE)
+        val clipGet = PendingIntent.getService(this, 4, Intent(this, SyncService::class.java).setAction(ACTION_CLIP_GET), PendingIntent.FLAG_IMMUTABLE)
         return NotificationCompat.Builder(this, CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(getString(R.string.app_name))
@@ -166,6 +191,8 @@ class SyncService : Service() {
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setSilent(true)
+            .addAction(0, getString(R.string.clip_send), clipSend)
+            .addAction(0, getString(R.string.clip_get), clipGet)
             .addAction(0, getString(R.string.sync_now), sync)
             .build()
     }
@@ -176,6 +203,10 @@ class SyncService : Service() {
         private const val NOTIF_ID = 1
         const val ACTION_SYNC = "com.cosmickittu.syncme.SYNC"
         const val ACTION_STOP = "com.cosmickittu.syncme.STOP"
+        const val ACTION_CLIP_GET = "com.cosmickittu.syncme.CLIP_GET"
+
+        /** The running client, for clipboard actions from other screens. */
+        @Volatile var activeClient: SyncClient? = null
 
         fun start(ctx: Context) {
             ContextCompat.startForegroundService(ctx, Intent(ctx, SyncService::class.java))

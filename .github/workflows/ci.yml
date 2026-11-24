@@ -39,6 +39,15 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
+      - name: Headless Wayland session (tests real clipboard integration)
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q wl-clipboard sway
+          export XDG_RUNTIME_DIR=$RUNNER_TEMP/xdg && mkdir -p $XDG_RUNTIME_DIR && chmod 700 $XDG_RUNTIME_DIR
+          WLR_BACKENDS=headless WLR_LIBINPUT_NO_DEVICES=1 WLR_RENDERER=pixman sway -c /dev/null > $RUNNER_TEMP/sway.log 2>&1 &
+          sleep 3
+          echo "XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR" >> $GITHUB_ENV
+          echo "WAYLAND_DISPLAY=$(ls $XDG_RUNTIME_DIR | grep -m1 '^wayland-[0-9]$')" >> $GITHUB_ENV
+      - run: go test -run TestWaylandClipboard -v ./internal/daemon/
       - run: scripts/e2e-test.sh
 
   arch:
