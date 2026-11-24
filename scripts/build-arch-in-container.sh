@@ -2,7 +2,7 @@
 # Builds the Arch package inside an archlinux container (used by CI).
 # makepkg refuses to run as root, so a build user is created.
 set -euo pipefail
-pacman -Syu --noconfirm --needed base-devel git go
+pacman -Syu --noconfirm --needed base-devel git go wl-clipboard
 useradd -m builder || true
 git config --global --add safe.directory '*'
 cp -r "$PWD" /home/builder/src && chown -R builder /home/builder/src
