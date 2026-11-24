@@ -86,6 +86,8 @@ type Msg struct {
 	Auto  *bool  `json:"auto,omitempty"`  // clipcfg: push PC clipboard automatically
 	From  string `json:"from,omitempty"`  // device the clip came from
 	Data  []byte `json:"-"`               // image bytes (sent as data frames after the message)
+
+	Caps []string `json:"caps,omitempty"` // welcome: optional features this PC supports, e.g. "clip"
 }
 
 // Conn wraps a stream (normally TLS) with frame reading and writing.

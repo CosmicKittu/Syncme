@@ -61,7 +61,7 @@ func isClosed(err error) bool {
 }
 
 func (d *Daemon) welcome() *proto.Msg {
-	return &proto.Msg{T: "welcome", V: proto.Version, Name: d.Cfg.Name, ID: d.ID.ID, Addrs: d.Addresses(), Public: d.Public(), Relay: d.Cfg.Relay}
+	return &proto.Msg{T: "welcome", V: proto.Version, Name: d.Cfg.Name, ID: d.ID.ID, Addrs: d.Addresses(), Public: d.Public(), Relay: d.Cfg.Relay, Caps: []string{"clip"}}
 }
 
 func (d *Daemon) handleSync(c *proto.Conn, hello *proto.Msg, via string) error {
@@ -146,7 +146,9 @@ func (d *Daemon) handleSync(c *proto.Conn, hello *proto.Msg, via string) error {
 		case "bye":
 			return nil
 		default:
-			return fmt.Errorf("unexpected message %q", m.T)
+			// A newer app may send messages this PC doesn't know yet:
+			// ignore them instead of dropping the connection.
+			d.Log.Printf("%s: ignoring unknown message %q (update syncme on the PC?)", dev.Name, m.T)
 		}
 	}
 }

@@ -64,14 +64,24 @@ class SyncClient(
     @Volatile var clipAuto: Boolean = true
         set(v) {
             field = v
-            conn?.let { c -> try { c.send(msg("clipcfg", "auto" to v)) } catch (_: IOException) {} }
+            if (pcSupportsClipboard) conn?.let { c -> try { c.send(msg("clipcfg", "auto" to v)) } catch (_: IOException) {} }
         }
 
     val isConnected: Boolean get() = conn != null
 
+    /** False when the PC runs an older syncme without clipboard support. */
+    @Volatile var pcSupportsClipboard: Boolean = false
+        private set
+
+    private fun clipConn(): FrameConn {
+        val c = conn ?: throw IOException("Not connected to the PC")
+        if (!pcSupportsClipboard) throw IOException("Update Syncme on the PC to share the clipboard")
+        return c
+    }
+
     /** Sends a clip to the PC. Throws if not connected. */
     fun sendClip(item: ClipItem) {
-        val c = conn ?: throw IOException("Not connected to the PC")
+        val c = clipConn()
         val m = msg("clip", "id" to item.id, "kind" to item.kind, "mime" to item.mime, "h" to item.hash,
             "s" to item.size, "sens" to (if (item.sensitive) true else null))
         if (item.kind == "text") {
@@ -85,7 +95,7 @@ class SyncClient(
 
     /** Asks the PC for its current clipboard; the answer arrives via [SyncListener.onClip]. */
     fun requestPcClip() {
-        val c = conn ?: throw IOException("Not connected to the PC")
+        val c = clipConn()
         c.send(msg("clipget"))
     }
 
@@ -145,7 +155,10 @@ class SyncClient(
             connectedLocal = c.local
             val updated = peer.withWelcome(w, c.via)
             if (updated != peer) store.save(updated)
-            fc.send(msg("clipcfg", "auto" to clipAuto))
+            val caps = w.optJSONArray("caps")
+            pcSupportsClipboard = caps != null && (0 until caps.length()).any { caps.optString(it) == "clip" }
+            if (pcSupportsClipboard) fc.send(msg("clipcfg", "auto" to clipAuto))
+            else listener.onLog("PC runs an older syncme without clipboard support")
             listener.onConnected(updated, c.via, c.local)
             return fc to updated
         } catch (e: Exception) {
