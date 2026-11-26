@@ -5,6 +5,7 @@
 set -euo pipefail
 ARCH=${1:?arch}; VERSION=${2:?version}; OUT=${3:-dist}
 VERSION=${VERSION#v}
+VERSION=${VERSION//-/\~}   # 1.2.0-alpha.1 -> 1.2.0~alpha.1 (sorts before 1.2.0)
 cd "$(dirname "$0")/../.."
 ROOT=$(pwd)
 STAGE=$(mktemp -d)

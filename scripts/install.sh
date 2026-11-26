@@ -25,9 +25,24 @@ tmp=$(mktemp)
 if [ -n "${SYNCME_BINARY:-}" ]; then        # local file (testing / offline)
   cp "$SYNCME_BINARY" "$tmp"
 else
-  url="https://github.com/$REPO/releases/latest/download/syncme-$os-$arch"
+  asset="syncme-$os-$arch"
+  if [ -n "${SYNCME_VERSION:-}" ]; then   # e.g. SYNCME_VERSION=v1.2.0-alpha.1
+    url="https://github.com/$REPO/releases/download/$SYNCME_VERSION/$asset"
+  else
+    url="https://github.com/$REPO/releases/latest/download/$asset"
+  fi
   echo "Downloading $url"
-  curl -fL --retry 3 -o "$tmp" "$url"
+  if ! curl -fsL --retry 3 -o "$tmp" "$url"; then
+    [ -n "${SYNCME_VERSION:-}" ] && { echo "Download failed: $url" >&2; exit 1; }
+    # Not in the latest stable release yet: use the newest pre-release.
+    tag=$(curl -fsSL "https://api.github.com/repos/$REPO/releases?per_page=10" \
+      | grep -o '"tag_name": *"[^"]*"' | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
+    [ -n "$tag" ] || { echo "Could not find a release for $asset" >&2; exit 1; }
+    url="https://github.com/$REPO/releases/download/$tag/$asset"
+    echo "Not in the stable release yet; using pre-release $tag"
+    echo "Downloading $url"
+    curl -fL --retry 3 -o "$tmp" "$url"
+  fi
 fi
 chmod 755 "$tmp"
 # Stop a running copy so the file can be replaced.

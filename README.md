@@ -69,17 +69,19 @@ What it **doesn't** replace: calls and SMS on the Mac, Handoff, AirPlay, Find My
 
 ## Download
 
-Everything is on the **[Releases page](https://github.com/CosmicKittu/Syncme/releases/latest)**. The installers below download the right file for you. These are the direct links:
+Everything is on the **[Releases page](https://github.com/CosmicKittu/Syncme/releases)**.
+
+> **🧪 Windows, macOS and Ubuntu/Debian are in alpha** ([v1.2.0-alpha.1](https://github.com/CosmicKittu/Syncme/releases/tag/v1.2.0-alpha.1)). They pass all automated tests on real Windows, macOS and Linux machines but are new, so please [report problems](https://github.com/CosmicKittu/Syncme/issues). The one-line installers below pick up the alpha automatically. Android and Arch have been in daily use since v1.1. The installers below download the right file for you. These are the direct links:
 
 | Device | File |
 |---|---|
 | Android phone / tablet | [`syncme-android.apk`](https://github.com/CosmicKittu/Syncme/releases/latest/download/syncme-android.apk) |
-| Windows (most PCs) | [`syncme-windows-amd64.exe`](https://github.com/CosmicKittu/Syncme/releases/latest/download/syncme-windows-amd64.exe) |
-| Windows on ARM (Surface Pro X, Snapdragon laptops) | [`syncme-windows-arm64.exe`](https://github.com/CosmicKittu/Syncme/releases/latest/download/syncme-windows-arm64.exe) |
-| Mac with Apple Silicon (M1/M2/M3/M4) | [`syncme-macos-arm64`](https://github.com/CosmicKittu/Syncme/releases/latest/download/syncme-macos-arm64) |
-| Mac with Intel CPU | [`syncme-macos-amd64`](https://github.com/CosmicKittu/Syncme/releases/latest/download/syncme-macos-amd64) |
-| Ubuntu / Debian / Mint / Pop!_OS | [`syncme-ubuntu-amd64.deb`](https://github.com/CosmicKittu/Syncme/releases/latest/download/syncme-ubuntu-amd64.deb) · [`arm64`](https://github.com/CosmicKittu/Syncme/releases/latest/download/syncme-ubuntu-arm64.deb) |
-| Arch Linux | [`syncme-arch-x86_64.pkg.tar.zst`](https://github.com/CosmicKittu/Syncme/releases/latest/download/syncme-arch-x86_64.pkg.tar.zst) |
+| Windows (most PCs) | [`syncme-windows-amd64.exe`](https://github.com/CosmicKittu/Syncme/releases/download/v1.2.0-alpha.1/syncme-windows-amd64.exe) |
+| Windows on ARM (Surface Pro X, Snapdragon laptops) | [`syncme-windows-arm64.exe`](https://github.com/CosmicKittu/Syncme/releases/download/v1.2.0-alpha.1/syncme-windows-arm64.exe) |
+| Mac with Apple Silicon (M1/M2/M3/M4) | [`syncme-macos-arm64`](https://github.com/CosmicKittu/Syncme/releases/download/v1.2.0-alpha.1/syncme-macos-arm64) |
+| Mac with Intel CPU | [`syncme-macos-amd64`](https://github.com/CosmicKittu/Syncme/releases/download/v1.2.0-alpha.1/syncme-macos-amd64) |
+| Ubuntu / Debian / Mint / Pop!_OS | [`syncme-ubuntu-amd64.deb`](https://github.com/CosmicKittu/Syncme/releases/download/v1.2.0-alpha.1/syncme-ubuntu-amd64.deb) · [`arm64`](https://github.com/CosmicKittu/Syncme/releases/download/v1.2.0-alpha.1/syncme-ubuntu-arm64.deb) |
+| Arch Linux | [`syncme-arch-x86_64.pkg.tar.zst`](https://github.com/CosmicKittu/Syncme/releases/download/v1.2.0-alpha.1/syncme-arch-x86_64.pkg.tar.zst) |
 | Any other Linux | [`syncme-linux-amd64`](https://github.com/CosmicKittu/Syncme/releases/latest/download/syncme-linux-amd64) · [`arm64`](https://github.com/CosmicKittu/Syncme/releases/latest/download/syncme-linux-arm64) |
 
 ---
@@ -123,7 +125,7 @@ This installs `syncme` into `~/.local/bin` and starts it, and it starts again at
 ### Ubuntu / Debian / Linux Mint / Pop!_OS
 
 ```bash
-wget https://github.com/CosmicKittu/Syncme/releases/latest/download/syncme-ubuntu-amd64.deb
+wget https://github.com/CosmicKittu/Syncme/releases/download/v1.2.0-alpha.1/syncme-ubuntu-amd64.deb
 sudo apt install ./syncme-ubuntu-amd64.deb
 systemctl --user enable --now syncme
 syncme install        # adds "Send to Phone" to the right-click menu in Files
@@ -136,7 +138,7 @@ If your firewall is on (`sudo ufw status`), allow Syncme: `sudo ufw allow syncme
 ### Arch Linux
 
 ```bash
-wget https://github.com/CosmicKittu/Syncme/releases/latest/download/syncme-arch-x86_64.pkg.tar.zst
+wget https://github.com/CosmicKittu/Syncme/releases/download/v1.2.0-alpha.1/syncme-arch-x86_64.pkg.tar.zst
 sudo pacman -U syncme-arch-x86_64.pkg.tar.zst
 systemctl --user enable --now syncme
 syncme install

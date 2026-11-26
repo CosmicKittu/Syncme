@@ -6,11 +6,17 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version tag to create, e.g. v1.0.0"
+        description: "Version tag to create, e.g. v1.2.0 or v1.2.0-alpha.1"
         required: true
+      prerelease:
+        description: "Mark as pre-release (alpha/beta)"
+        type: boolean
+        default: false
 
 env:
   VERSION: ${{ github.event.inputs.version || github.ref_name }}
+  # tags like v1.2.0-alpha.1 are pre-releases too
+  PRERELEASE: ${{ github.event.inputs.prerelease == 'true' || contains(github.event.inputs.version || github.ref_name, '-') }}
 
 permissions:
   contents: write
@@ -72,10 +78,25 @@ jobs:
       - run: cp arch/*.pkg.tar.zst dist/syncme-arch-x86_64.pkg.tar.zst
       - name: Installer scripts
         run: cp scripts/install.sh scripts/install-windows.ps1 dist/
+      - name: Release notes
+        run: |
+          : > release-notes.md
+          if [ "$PRERELEASE" = "true" ]; then
+            cat > release-notes.md <<'NOTES'
+          **⚠️ Pre-release / alpha.** First builds for **Windows, macOS and Ubuntu/Debian**, plus Arch and Android.
+          Every build passed automated tests on real Windows, macOS and Linux machines (clipboard, installers,
+          full phone-sync test), but they have had little use on real computers yet. Please report problems under Issues.
+
+          The one-line installers in the README pick this pre-release up automatically.
+          NOTES
+            sed -i 's/^          //' release-notes.md
+          fi
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.VERSION }}
           target_commitish: ${{ github.sha }}
-          name: Syncme ${{ env.VERSION }}
+          name: Syncme ${{ env.VERSION }}${{ env.PRERELEASE == 'true' && ' (pre-release)' || '' }}
+          prerelease: ${{ env.PRERELEASE == 'true' }}
+          body_path: release-notes.md
           files: dist/*
           generate_release_notes: true

@@ -18,9 +18,24 @@ Start-Sleep -Milliseconds 500
 if ($env:SYNCME_BINARY) {
     Copy-Item $env:SYNCME_BINARY $exe -Force
 } else {
-    $url = "https://github.com/$repo/releases/latest/download/syncme-windows-$arch.exe"
+    $asset = "syncme-windows-$arch.exe"
+    if ($env:SYNCME_VERSION) {   # e.g. $env:SYNCME_VERSION = 'v1.2.0-alpha.1'
+        $url = "https://github.com/$repo/releases/download/$($env:SYNCME_VERSION)/$asset"
+    } else {
+        $url = "https://github.com/$repo/releases/latest/download/$asset"
+    }
     Write-Host "Downloading $url"
-    Invoke-WebRequest -Uri $url -OutFile $exe -UseBasicParsing
+    try {
+        Invoke-WebRequest -Uri $url -OutFile $exe -UseBasicParsing
+    } catch {
+        if ($env:SYNCME_VERSION) { throw }
+        # Not in the latest stable release yet: use the newest pre-release.
+        $tag = (Invoke-RestMethod "https://api.github.com/repos/$repo/releases?per_page=10")[0].tag_name
+        $url = "https://github.com/$repo/releases/download/$tag/$asset"
+        Write-Host "Not in the stable release yet; using pre-release $tag"
+        Write-Host "Downloading $url"
+        Invoke-WebRequest -Uri $url -OutFile $exe -UseBasicParsing
+    }
 }
 Write-Host "Installed $exe ($(& $exe version))"
 
