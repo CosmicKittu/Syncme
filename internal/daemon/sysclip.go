@@ -92,6 +92,7 @@ func readByTypes(types []string, from string, read func(mime string) ([]byte, er
 // retrying while the graphical session is not up yet.
 func (d *Daemon) clipLoop(ctx context.Context) {
 	logged := ""
+	d.setClipStatus("starting…")
 	for ctx.Err() == nil {
 		sys, why := detectClipboard()
 		if sys == nil {

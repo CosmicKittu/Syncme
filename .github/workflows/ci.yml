@@ -97,6 +97,7 @@ jobs:
           go build -o "$RUNNER_TEMP/syncme" ./cmd/syncme
           SYNCME_BINARY="$RUNNER_TEMP/syncme" bash scripts/install.sh
           for i in $(seq 30); do ~/.local/bin/syncme status && break; sleep 1; done
+          for i in $(seq 20); do ~/.local/bin/syncme status | grep -q "Clipboard: starting" || break; sleep 1; done
           ~/.local/bin/syncme status
           ~/.local/bin/syncme doctor
           ~/.local/bin/syncme uninstall
@@ -128,6 +129,8 @@ jobs:
           $ok = $false
           for ($i = 0; $i -lt 30; $i++) { & $exe status; if ($LASTEXITCODE -eq 0) { $ok = $true; break }; Start-Sleep 1 }
           if (-not $ok) { Get-Content "$env:APPDATA\syncme\syncme.log" -ErrorAction SilentlyContinue; exit 1 }
+          Start-Sleep 2
+          & $exe status
           & $exe doctor
           if (-not (Test-Path "$env:APPDATA\Microsoft\Windows\SendTo\Phone (Syncme).vbs")) { exit 1 }
           & $exe uninstall

@@ -177,15 +177,12 @@ func (winClipboard) Write(c *Clip) error {
 	if c.Kind == "image" {
 		png = c.Data
 		if c.Mime != "image/png" {
-			var err error
-			if png, err = toPNG(c.Data); err != nil {
-				return err
+			if p, err := toPNG(c.Data); err == nil {
+				png = p
 			}
 		}
-		var err error
-		if dib, err = pngToDIB(png); err != nil {
-			return err
-		}
+		// If the image can't be converted, still offer the PNG itself.
+		dib, _ = pngToDIB(png)
 	}
 	return withClipboard(func() error {
 		if r, _, err := procEmptyClipboard.Call(); r == 0 {
@@ -201,11 +198,16 @@ func (winClipboard) Write(c *Clip) error {
 			return setGlobal(cfUnicodeText, b)
 		}
 		// Both forms: apps like Paint read CF_DIB, browsers/chat apps prefer PNG.
-		if err := setGlobal(cfDIB, dib); err != nil {
-			return err
+		if dib != nil {
+			if err := setGlobal(cfDIB, dib); err != nil {
+				return err
+			}
 		}
 		if cfPNG != 0 {
 			return setGlobal(cfPNG, png)
+		}
+		if dib == nil {
+			return fmt.Errorf("image could not be converted for the Windows clipboard")
 		}
 		return nil
 	})
