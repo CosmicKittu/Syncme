@@ -10,7 +10,7 @@ import (
 
 // macOS: a LaunchAgent starts syncme at login and restarts it if it stops.
 
-const startHint = "launchctl load -w ~/Library/LaunchAgents/com.cosmickittu.syncme.plist"
+const startHint = "syncme install"
 
 const agentLabel = "com.cosmickittu.syncme"
 
@@ -48,7 +48,7 @@ func install() error {
 	</array>
 	<key>RunAtLoad</key><true/>
 	<key>KeepAlive</key><true/>
-	<key>ProcessType</key><string>Background</string>
+	<key>ProcessType</key><string>Interactive</string>
 </dict>
 </plist>
 `
@@ -58,8 +58,15 @@ func install() error {
 		return err
 	}
 	fmt.Println("wrote", agentPath())
-	_ = exec.Command("launchctl", "unload", agentPath()).Run()
-	if out, err := exec.Command("launchctl", "load", "-w", agentPath()).CombinedOutput(); err != nil {
+	stopAgent()
+	// Start inside the logged-in desktop session (gui/<uid>): only there may
+	// it use the clipboard. Fall back to the legacy command (e.g. over SSH).
+	gui := fmt.Sprintf("gui/%d", os.Getuid())
+	out, err := exec.Command("launchctl", "bootstrap", gui, agentPath()).CombinedOutput()
+	if err != nil {
+		out, err = exec.Command("launchctl", "load", "-w", agentPath()).CombinedOutput()
+	}
+	if err != nil {
 		fmt.Printf("could not start syncme automatically: %s\nstart it with: syncme daemon\n", strings.TrimSpace(string(out)))
 	} else {
 		fmt.Println("started syncme (it will also start at every login); log:", logPath())
@@ -69,8 +76,14 @@ func install() error {
 	return nil
 }
 
+// stopAgent stops a running agent, whichever way it was started.
+func stopAgent() {
+	_ = exec.Command("launchctl", "bootout", fmt.Sprintf("gui/%d/%s", os.Getuid(), agentLabel)).Run()
+	_ = exec.Command("launchctl", "unload", agentPath()).Run()
+}
+
 func uninstall() error {
-	_ = exec.Command("launchctl", "unload", "-w", agentPath()).Run()
+	stopAgent()
 	if os.Remove(agentPath()) == nil {
 		fmt.Println("removed", agentPath())
 	}

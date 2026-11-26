@@ -47,6 +47,7 @@ fi
 chmod 755 "$tmp"
 # Stop a running copy so the file can be replaced.
 if [ "$os" = macos ]; then
+  launchctl bootout "gui/$(id -u)/com.cosmickittu.syncme" 2>/dev/null || true
   launchctl unload "$HOME/Library/LaunchAgents/com.cosmickittu.syncme.plist" 2>/dev/null || true
 else
   systemctl --user stop syncme 2>/dev/null || true
