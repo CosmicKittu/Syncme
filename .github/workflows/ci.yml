@@ -46,6 +46,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
+      - uses: gradle/actions/setup-gradle@v4  # caches Gradle/Kotlin downloads
       - name: Headless Wayland session (tests real clipboard integration)
         run: |
           sudo apt-get update -q && sudo apt-get install -y -q wl-clipboard sway
@@ -90,6 +91,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
+      - uses: gradle/actions/setup-gradle@v4  # caches Gradle/Kotlin downloads
       - run: go test -v -run 'TestNativeClipboard' ./internal/daemon/
       - run: go test ./...
       - name: Installer (install.sh) + background service
@@ -116,6 +118,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
+      - uses: gradle/actions/setup-gradle@v4  # caches Gradle/Kotlin downloads
       - run: go test -v -run TestNativeClipboard ./internal/daemon/
       - run: go test ./...
       - name: Installer (install-windows.ps1) + background start
