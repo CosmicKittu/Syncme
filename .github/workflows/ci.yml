@@ -6,25 +6,32 @@ on:
 
 jobs:
   linux:
-    name: Linux app (Go)
+    name: Build all platforms + Ubuntu package
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
       - run: go vet ./...
-      - run: go test ./...
-      - name: Build
+      - name: Vet for macOS and Windows
         run: |
-          mkdir -p dist
-          for arch in amd64 arm64; do
-            CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags "-s -w" -o dist/syncme-linux-$arch ./cmd/syncme
-            CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags "-s -w" -o dist/syncme-relay-linux-$arch ./cmd/syncme-relay
-          done
+          for os in darwin windows; do for arch in amd64 arm64; do
+            CGO_ENABLED=0 GOOS=$os GOARCH=$arch go vet ./...
+          done; done
+      - run: go test ./...
+      - name: Build Linux, macOS, Windows binaries and .deb packages
+        run: make dist
+      - name: Install the .deb on Ubuntu
+        run: |
+          sudo apt-get install -y ./dist/syncme_*_amd64.deb
+          syncme version
+          dpkg -L syncme | grep -E "bin/syncme|syncme.service"
       - uses: actions/upload-artifact@v4
         with:
-          name: syncme-linux
+          name: syncme-desktop
           path: dist/
 
   e2e:
@@ -48,6 +55,12 @@ jobs:
           echo "XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR" >> $GITHUB_ENV
           echo "WAYLAND_DISPLAY=$(ls $XDG_RUNTIME_DIR | grep -m1 '^wayland-[0-9]$')" >> $GITHUB_ENV
       - run: go test -run TestWaylandClipboard -v ./internal/daemon/
+      - name: X11 / GNOME clipboard (xclip on Xvfb)
+        run: |
+          sudo apt-get install -y -q xvfb xclip
+          Xvfb :77 -screen 0 800x600x24 &
+          sleep 2
+          DISPLAY=:77 go test -run TestX11Clipboard -v ./internal/daemon/
       - run: scripts/e2e-test.sh
 
   arch:
@@ -64,6 +77,63 @@ jobs:
         with:
           name: syncme-arch-package
           path: dist/*.pkg.tar.zst
+
+  macos:
+    name: macOS (tests, real clipboard, installer, end-to-end)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - run: go test -v -run 'TestNativeClipboard' ./internal/daemon/
+      - run: go test ./...
+      - name: Installer (install.sh) + background service
+        run: |
+          go build -o "$RUNNER_TEMP/syncme" ./cmd/syncme
+          SYNCME_BINARY="$RUNNER_TEMP/syncme" bash scripts/install.sh
+          for i in $(seq 30); do ~/.local/bin/syncme status && break; sleep 1; done
+          ~/.local/bin/syncme status
+          ~/.local/bin/syncme doctor
+          ~/.local/bin/syncme uninstall
+      - name: End-to-end
+        run: scripts/e2e-test.sh
+
+  windows:
+    name: Windows (tests, real clipboard, installer, end-to-end)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - run: go test -v -run TestNativeClipboard ./internal/daemon/
+      - run: go test ./...
+      - name: Installer (install-windows.ps1) + background start
+        shell: pwsh
+        run: |
+          go build -o "$env:RUNNER_TEMP\syncme.exe" ./cmd/syncme
+          $env:SYNCME_BINARY = "$env:RUNNER_TEMP\syncme.exe"
+          $env:SYNCME_NO_FIREWALL = "1"
+          ./scripts/install-windows.ps1
+          $exe = "$env:LOCALAPPDATA\Programs\Syncme\syncme.exe"
+          $ok = $false
+          for ($i = 0; $i -lt 30; $i++) { & $exe status; if ($LASTEXITCODE -eq 0) { $ok = $true; break }; Start-Sleep 1 }
+          if (-not $ok) { Get-Content "$env:APPDATA\syncme\syncme.log" -ErrorAction SilentlyContinue; exit 1 }
+          & $exe doctor
+          if (-not (Test-Path "$env:APPDATA\Microsoft\Windows\SendTo\Phone (Syncme).vbs")) { exit 1 }
+          & $exe uninstall
+      - name: End-to-end
+        shell: bash
+        run: scripts/e2e-test.sh
 
   android:
     name: Android app

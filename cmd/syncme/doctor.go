@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"net"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -19,7 +18,7 @@ func doctor(paths config.Paths) error {
 	var st daemon.Status
 	if err := call(paths, "GET", "/status", nil, &st); err != nil {
 		bad("syncme service is not running")
-		fmt.Println("      start it: systemctl --user enable --now syncme")
+		fmt.Println("      start it: " + startHint)
 		return nil
 	}
 	ok("syncme service is running (" + st.Name + ")")
@@ -52,21 +51,8 @@ func doctor(paths config.Paths) error {
 		bad("clipboard sharing " + st.Clipboard)
 	}
 
-	fw := detectFirewall()
-	if fw == "" {
-		ok("no active firewall detected")
-	} else {
-		fmt.Printf("  ! %s firewall is active — make sure syncme is allowed:\n", fw)
-		switch fw {
-		case "ufw":
-			fmt.Println("      sudo ufw allow 47810/tcp && sudo ufw allow 47811/udp")
-		case "firewalld":
-			fmt.Println("      sudo firewall-cmd --permanent --add-port=47810/tcp --add-port=47811/udp && sudo firewall-cmd --reload")
-		default:
-			fmt.Println("      sudo nft insert rule inet filter input tcp dport 47810 accept")
-			fmt.Println("      sudo nft insert rule inet filter input udp dport 47811 accept")
-			fmt.Println("      (or the equivalent for your firewall; make it permanent in /etc/nftables.conf)")
-		}
+	for _, line := range firewallAdvice() {
+		fmt.Println(line)
 	}
 	where := "the PC"
 	if len(lan) > 0 {
@@ -75,19 +61,4 @@ func doctor(paths config.Paths) error {
 	fmt.Printf("\nOn the phone: use the same Wi-Fi as %s — not a guest network — and turn mobile data off for the test,\n", where)
 	fmt.Printf("then tap \"Find PC on this Wi-Fi\". If it finds the PC, pairing will work.\n")
 	return nil
-}
-
-func detectFirewall() string {
-	if out, err := exec.Command("systemctl", "is-active", "ufw").Output(); err == nil && strings.TrimSpace(string(out)) == "active" {
-		return "ufw"
-	}
-	if out, err := exec.Command("systemctl", "is-active", "firewalld").Output(); err == nil && strings.TrimSpace(string(out)) == "active" {
-		return "firewalld"
-	}
-	for _, svc := range []string{"nftables", "iptables"} {
-		if out, err := exec.Command("systemctl", "is-active", svc).Output(); err == nil && strings.TrimSpace(string(out)) == "active" {
-			return svc
-		}
-	}
-	return ""
 }

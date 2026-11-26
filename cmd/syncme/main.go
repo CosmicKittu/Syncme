@@ -12,7 +12,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strings"
@@ -63,7 +62,7 @@ func main() {
 	var err error
 	switch os.Args[1] {
 	case "daemon":
-		err = runDaemon(paths)
+		err = runDaemon(paths, os.Args[2:])
 	case "pair":
 		err = pair(paths)
 	case "status", "devices":
@@ -100,12 +99,26 @@ func main() {
 	}
 }
 
-func runDaemon(paths config.Paths) error {
+func runDaemon(paths config.Paths, args []string) error {
 	cfg, err := config.Load(paths)
 	if err != nil {
 		return err
 	}
-	logger := log.New(os.Stderr, "", log.LstdFlags)
+	var out io.Writer = os.Stderr
+	for i := 0; i+1 < len(args); i++ {
+		if args[i] == "--log" { // used when started in the background (macOS / Windows)
+			f, err := os.OpenFile(args[i+1], os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+			if st, _ := f.Stat(); st != nil && st.Size() > 5<<20 { // keep it small
+				_ = f.Truncate(0)
+			}
+			out = f
+		}
+	}
+	logger := log.New(out, "", log.LstdFlags)
 	d, err := daemon.New(cfg, paths, logger)
 	if err != nil {
 		return err
@@ -140,7 +153,7 @@ func callTimeout(paths config.Paths, method, path string, body any, out any, tim
 	req, _ := http.NewRequest(method, "http://syncme"+path, rd)
 	resp, err := client(paths, timeout).Do(req)
 	if err != nil {
-		return fmt.Errorf("daemon not running? start it with `systemctl --user start syncme` or `syncme daemon` (%v)", err)
+		return fmt.Errorf("syncme is not running — start it with `%s` or `syncme daemon` (%v)", startHint, err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
@@ -281,12 +294,6 @@ func send(paths config.Paths, files []string) error {
 		desktopNotify("Syncme", msg)
 	}
 	return nil
-}
-
-func desktopNotify(title, body string) {
-	if p, err := exec.LookPath("notify-send"); err == nil {
-		_ = exec.Command(p, "-i", "phone", "-a", "Syncme", title, body).Run()
-	}
 }
 
 func uniqueName(p string) string {

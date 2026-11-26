@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -41,6 +42,30 @@ func ValidPath(p string) bool {
 		if seg == "" || seg == "." || seg == ".." || len(seg) > 255 || IsIgnored(seg) {
 			return false
 		}
+		if runtime.GOOS == "windows" && !windowsNameOK(seg) {
+			return false // can't exist on Windows; skipped instead of failing every sync
+		}
+	}
+	return true
+}
+
+// windowsNameOK reports whether a file name is allowed on Windows.
+func windowsNameOK(seg string) bool {
+	if strings.ContainsAny(seg, `<>:"|?*`) || strings.HasSuffix(seg, ".") || strings.HasSuffix(seg, " ") {
+		return false
+	}
+	for _, r := range seg {
+		if r < 32 {
+			return false
+		}
+	}
+	base := strings.ToUpper(strings.SplitN(seg, ".", 2)[0])
+	switch base {
+	case "CON", "PRN", "AUX", "NUL":
+		return false
+	}
+	if len(base) == 4 && (strings.HasPrefix(base, "COM") || strings.HasPrefix(base, "LPT")) && base[3] >= '1' && base[3] <= '9' {
+		return false
 	}
 	return true
 }

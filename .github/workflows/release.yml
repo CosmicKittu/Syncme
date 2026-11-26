@@ -43,13 +43,11 @@ jobs:
           distribution: temurin
           java-version: 17
       - uses: gradle/actions/setup-gradle@v4
-      - name: Linux binaries
+      - name: Linux, macOS and Windows binaries + Ubuntu packages
         run: |
-          mkdir -p dist
-          for arch in amd64 arm64; do
-            CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o dist/syncme-linux-$arch ./cmd/syncme
-            CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags "-s -w" -o dist/syncme-relay-linux-$arch ./cmd/syncme-relay
-          done
+          make dist VERSION="${VERSION#v}"
+          # stable names so ".../releases/latest/download/<name>" links always work
+          for arch in amd64 arm64; do mv dist/syncme_*_$arch.deb dist/syncme-ubuntu-$arch.deb; done
       - name: Signing key (optional)
         env:
           KEYSTORE_B64: ${{ secrets.SYNCME_KEYSTORE_B64 }}
@@ -70,7 +68,10 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: arch
-          path: dist
+          path: arch
+      - run: cp arch/*.pkg.tar.zst dist/syncme-arch-x86_64.pkg.tar.zst
+      - name: Installer scripts
+        run: cp scripts/install.sh scripts/install-windows.ps1 dist/
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.VERSION }}

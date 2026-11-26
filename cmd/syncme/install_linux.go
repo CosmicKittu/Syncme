@@ -1,3 +1,5 @@
+//go:build !darwin && !windows
+
 package main
 
 import (
@@ -208,4 +210,43 @@ func shellQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''
 
 func xmlEscape(s string) string {
 	return strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;").Replace(s)
+}
+
+const startHint = "systemctl --user enable --now syncme"
+
+func desktopNotify(title, body string) {
+	if p, err := exec.LookPath("notify-send"); err == nil {
+		_ = exec.Command(p, "-i", "phone", "-a", "Syncme", title, body).Run()
+	}
+}
+
+func firewallAdvice() []string {
+	switch detectFirewall() {
+	case "":
+		return []string{"  ✓ no active firewall detected"}
+	case "ufw":
+		return []string{"  ! ufw firewall is active — allow syncme:", "      sudo ufw allow 47810/tcp && sudo ufw allow 47811/udp"}
+	case "firewalld":
+		return []string{"  ! firewalld is active — allow syncme:", "      sudo firewall-cmd --permanent --add-port=47810/tcp --add-port=47811/udp && sudo firewall-cmd --reload"}
+	default:
+		return []string{"  ! a firewall (nftables/iptables) is active — allow syncme:",
+			"      sudo nft insert rule inet filter input tcp dport 47810 accept",
+			"      sudo nft insert rule inet filter input udp dport 47811 accept",
+			"      (or the equivalent for your firewall; make it permanent in /etc/nftables.conf)"}
+	}
+}
+
+func detectFirewall() string {
+	if out, err := exec.Command("systemctl", "is-active", "ufw").Output(); err == nil && strings.TrimSpace(string(out)) == "active" {
+		return "ufw"
+	}
+	if out, err := exec.Command("systemctl", "is-active", "firewalld").Output(); err == nil && strings.TrimSpace(string(out)) == "active" {
+		return "firewalld"
+	}
+	for _, svc := range []string{"nftables", "iptables"} {
+		if out, err := exec.Command("systemctl", "is-active", svc).Output(); err == nil && strings.TrimSpace(string(out)) == "active" {
+			return svc
+		}
+	}
+	return ""
 }

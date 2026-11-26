@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/CosmicKittu/Syncme/internal/proto"
 )
@@ -36,19 +37,35 @@ func home() string {
 }
 
 func DefaultPaths() Paths {
-	cfg := os.Getenv("XDG_CONFIG_HOME")
-	if cfg == "" {
-		cfg = filepath.Join(home(), ".config")
-	}
-	data := os.Getenv("XDG_DATA_HOME")
-	if data == "" {
-		data = filepath.Join(home(), ".local", "share")
-	}
-	p := Paths{ConfigDir: filepath.Join(cfg, "syncme"), DataDir: filepath.Join(data, "syncme")}
-	if rt := os.Getenv("XDG_RUNTIME_DIR"); rt != "" {
-		p.Socket = filepath.Join(rt, "syncme.sock")
-	} else {
-		p.Socket = filepath.Join(p.ConfigDir, "control.sock")
+	var p Paths
+	switch runtime.GOOS {
+	case "darwin":
+		// ~/Library/Application Support/syncme
+		dir := filepath.Join(home(), "Library", "Application Support", "syncme")
+		p = Paths{ConfigDir: dir, DataDir: filepath.Join(dir, "data"), Socket: filepath.Join(dir, "control.sock")}
+	case "windows":
+		// %APPDATA%\syncme
+		base, err := os.UserConfigDir()
+		if err != nil {
+			base = filepath.Join(home(), "AppData", "Roaming")
+		}
+		dir := filepath.Join(base, "syncme")
+		p = Paths{ConfigDir: dir, DataDir: filepath.Join(dir, "data"), Socket: filepath.Join(dir, "control.sock")}
+	default: // Linux and other Unix: XDG directories
+		cfg := os.Getenv("XDG_CONFIG_HOME")
+		if cfg == "" {
+			cfg = filepath.Join(home(), ".config")
+		}
+		data := os.Getenv("XDG_DATA_HOME")
+		if data == "" {
+			data = filepath.Join(home(), ".local", "share")
+		}
+		p = Paths{ConfigDir: filepath.Join(cfg, "syncme"), DataDir: filepath.Join(data, "syncme")}
+		if rt := os.Getenv("XDG_RUNTIME_DIR"); rt != "" {
+			p.Socket = filepath.Join(rt, "syncme.sock")
+		} else {
+			p.Socket = filepath.Join(p.ConfigDir, "control.sock")
+		}
 	}
 	if v := os.Getenv("SYNCME_HOME"); v != "" { // used by tests and multi-instance setups
 		p = Paths{ConfigDir: filepath.Join(v, "config"), DataDir: filepath.Join(v, "data"), Socket: filepath.Join(v, "control.sock")}
