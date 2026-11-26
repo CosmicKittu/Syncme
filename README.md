@@ -17,6 +17,7 @@ Works on **Windows 10/11, macOS, Ubuntu/Debian, Arch and any other Linux**, with
 ## Contents
 
 - [What it does](#what-it-does)
+- [Mac + Android phone (no Apple ecosystem)?](#mac--android-phone-no-apple-ecosystem)
 - [Download](#download)
 - [Install on your computer](#1-install-on-your-computer): [Windows](#windows) · [macOS](#macos) · [Ubuntu / Debian](#ubuntu--debian--linux-mint--popos) · [Arch](#arch-linux) · [Other Linux](#other-linux)
 - [Install on your phone or tablet](#2-install-on-your-android-phone-or-tablet)
@@ -41,6 +42,28 @@ Works on **Windows 10/11, macOS, Ubuntu/Debian, Arch and any other Linux**, with
 | 🛟 **Safe** | Deleted files go to a `.syncme-trash` folder for 30 days. If a file was edited on both sides at once, both versions are kept. Transfers are checked, so no half-written files. |
 
 What it doesn't do: sync more than one folder, or sync two computers with each other. The computer is the hub, so phones and tablets sync through it.
+
+---
+
+## Mac + Android phone (no Apple ecosystem)?
+
+With an iPhone, AirDrop, Universal Clipboard and iCloud Drive just work between phone and Mac. With an Android phone you lose them, and Android's own sharing doesn't reach a Mac. Syncme gives back the parts you use every day:
+
+| With an iPhone you'd use… | With an Android phone, Syncme gives you… |
+|---|---|
+| **AirDrop**, Mac → phone | Drop the file into the **`syncme`** folder in Finder (or `syncme send file.pdf` in Terminal). It appears in *Downloads → syncme* on the phone. |
+| **AirDrop**, phone → Mac | **Share → Syncme** in any Android app (Photos, WhatsApp, Files…). It appears in `~/syncme` on the Mac. |
+| **Universal Clipboard** | Copy on the Mac (**⌘C**) and it's on the phone's clipboard. Phone → Mac takes one tap: **Send clipboard** in the notification or the Quick Settings tile. Then press **⌘V** on the Mac. |
+| Screenshot straight to the phone | **⌘⌃⇧4** copies a screenshot to the clipboard, and it arrives on the phone ready to paste. |
+| **iCloud Drive** folder on both | `~/syncme` ⇄ `Download/syncme`: always the same on both devices. It's local and private, with no storage limit, subscription or upload to anyone's server. |
+
+Setting it up on a Mac takes about two minutes:
+
+1. Open Terminal and run the [macOS install](#macos) line. Allow the two macOS prompts.
+2. Install the [Android app](#2-install-on-your-android-phone-or-tablet) and [pair](#3-pair-your-phone-with-the-computer) with `syncme pair`.
+3. Tip: in Finder press **⇧⌘H** (your home folder), then drag the **syncme** folder into the sidebar under *Favorites*. It's then one click away, like AirDrop.
+
+What it **doesn't** replace: calls and SMS on the Mac, Handoff, AirPlay, Find My, or iMessage. These depend on Apple's own services. Like AirDrop, Syncme works when the phone and Mac are on the same Wi-Fi. Away from home, see [syncing over the internet](#syncing-over-the-internet); Tailscale is the easy option.
 
 ---
 
